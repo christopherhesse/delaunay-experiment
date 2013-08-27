@@ -12,6 +12,13 @@ td:first-child {
 td:nth-child(2) {
   width: 100%
 }
+
+body {
+  font-family: "Helvetica Neue", Helvetica, sans-serif;
+  font-weight: 300;
+  letter-spacing: -2px;
+  margin: .3em 0 .1em 0;
+}
 </style>
 
     <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
@@ -19,6 +26,7 @@ td:nth-child(2) {
     <script src="delaunay.js"></script>
   </head>
   <body>
+    <h1>Delaunay triangulation of randomly generated points, colored, and diffuse lighted.</h1>
     <canvas id="canvas" width="1500" height="600">
     </canvas>
     <div id="sliders">
