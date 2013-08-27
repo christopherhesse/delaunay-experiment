@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.3/themes/smoothness/jquery-ui.css">
+<style>
+#sliders {
+  width: 80%; margin: auto;
+}
+td:first-child {
+  padding: 10px;
+}
+td:nth-child(2) {
+  width: 100%
+}
+</style>
+
+    <script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+    <script src="http://code.jquery.com/ui/1.10.3/jquery-ui.js"></script>
+    <script src="delaunay.js"></script>
+  </head>
+  <body>
+    <canvas id="canvas" width="1500" height="600">
+    </canvas>
+    <div id="sliders">
+      <table>
+        <tr><td>vertices</td><td><div id="vertices"></div></td></tr>
+        <tr><td>height</td><td><div id="height"></div></td></tr>
+        <tr><td>H</td><td><div id="H"></div></td></tr>
+        <tr><td>Hvar</td><td><div id="Hvar"></div></td></tr>
+        <tr><td>S</td><td><div id="S"></div></td></tr>
+        <tr><td>Svar</td><td><div id="Svar"></div></td></tr>
+        <tr><td>L</td><td><div id="L"></div></td></tr>
+        <tr><td>Lvar</td><td><div id="Lvar"></div></td></tr>
+        <tr><td>gaussianness</td><td><div id="gaussianness"></div></td></tr>
+        <tr><td>light-x</td><td><div id="light-x"></div></td></tr>
+        <tr><td>light-y</td><td><div id="light-y"></div></td></tr>
+        <tr><td>light-z</td><td><div id="light-z"></div></td></tr>
+    </div>
+    <script type="text/javascript">
+
+    var PARAMS = {
+      vertices: 8,
+      H: 210,
+      S: 94,
+      L: 70,
+      Hvar: 0,
+      Svar: 0,
+      Lvar: 0,
+      height: 30,
+      gaussianness: 0,
+      lightx: 1,
+      lighty: 1,
+      lightz: 1,
+    }
+
+    // TODO: apply diffuse light with percent modifier plus normal luminance
+    // TODO: bin randoms
+    // TODO: Lvar doesn't work
+    // TODO: gaussian seems to be a little off
+    // TODO: make this an animation?
+
+$("#vertices").slider({
+  min: 1,
+  max: 16,
+  value: PARAMS.vertices,
+  change: function( event, ui ) {
+    PARAMS.vertices = ui.value
+    regen()
+    render()
+  }
+});
+
+$("#height").slider({
+  min: 0,
+  max: 100,
+  value: PARAMS.height,
+  slide: function( event, ui ) {
+    PARAMS.height = ui.value
+    render()
+  }
+});
+
+
+$("#H").slider({
+  min: 0,
+  max: 255,
+  value: PARAMS.H,
+  slide: function( event, ui ) {
+    PARAMS.H = ui.value
+    render()
+  }
+});
+
+$("#S").slider({
+  min: 0,
+  max: 100,
+  value: PARAMS.S,
+  slide: function( event, ui ) {
+    PARAMS.S = ui.value
+    render()
+  }
+});
+
+$("#L").slider({
+  min: 0,
+  max: 100,
+  value: PARAMS.L,
+  slide: function( event, ui ) {
+    PARAMS.L = ui.value
+    render()
+  }
+});
+
+$("#Hvar").slider({
+  min: 0,
+  max: 255,
+  value: PARAMS.Har,
+  slide: function( event, ui ) {
+    PARAMS.Hvar = ui.value
+    render()
+  }
+});
+
+$("#Svar").slider({
+  min: 0,
+  max: 100,
+  value: PARAMS.Svar,
+  slide: function( event, ui ) {
+    PARAMS.Svar = ui.value
+    render()
+  }
+});
+
+$("#Lvar").slider({
+  min: 0,
+  max: 100,
+  value: PARAMS.Lvar,
+  slide: function( event, ui ) {
+    PARAMS.Lvar = ui.value
+    render()
+  }
+});
+
+$("#gaussianness").slider({
+  min: 0,
+  max: 6,
+  value: PARAMS.gaussianness,
+  change: function( event, ui ) {
+    PARAMS.gaussianness = ui.value
+    regen()
+    render()
+  }
+});
+
+$("#light-x").slider({
+  min: -1,
+  max: 1,
+  step: 0.1,
+  value: PARAMS.lightx,
+  slide: function( event, ui ) {
+    PARAMS.lightx = ui.value
+    render()
+  }
+});
+
+$("#light-y").slider({
+  min: -1,
+  max: 1,
+  step: 0.1,
+  value: PARAMS.lighty,
+  slide: function( event, ui ) {
+    PARAMS.lighty = ui.value
+    render()
+  }
+});
+
+$("#light-z").slider({
+  min: -1,
+  max: 1,
+  step: 0.1,
+  value: PARAMS.lightz,
+  slide: function( event, ui ) {
+    PARAMS.lightz = ui.value
+    render()
+  }
+});
+
+function perturbPercent(x, modifier) {
+  var y = x + (Math.random() - 0.5) * 2 * modifier
+  y = Math.floor(y)
+  y = Math.max(y, 0)
+  y = Math.min(y, 100)
+  return y.toString()
+}
+
+function perturbByte(x, modifier) {
+  var y = x + (Math.random() - 0.5) * 2 * modifier
+  y = Math.floor(y)
+  y = Math.max(y, 0)
+  y = Math.min(y, 255)
+  return y.toString()
+}
+
+function randomColorVariation(luminance_modifier) {
+  luminance = perturbPercent(PARAMS.L, PARAMS.Lvar)
+  if (luminance_modifier !== undefined) {
+    luminance *= luminance_modifier
+  }
+  color = "hsl("+perturbByte(PARAMS.H, PARAMS.Hvar)+"," + perturbPercent(PARAMS.S, PARAMS.Svar) + "%," + luminance + "%)"
+  return color
+}
+
+      // http://en.wikipedia.org/wiki/Box-Muller_transform
+      function gaussianRandomNumber() {
+        return Math.sqrt(-2 * Math.log(Math.random())) * Math.cos(2 * Math.PI * Math.random())
+      }
+
+      // function inverseGaussian() {
+      //   do {
+      //     var x = gaussianRandomNumber()
+      //   } while (x > 1 || x < -1)
+      //   if (x > 0) {
+      //     return 1 - x;
+      //   } else {
+      //     return -1 - x;
+      //   }
+      // }
+
+      function randomNumber() {
+        return (Math.random() - 0.5) * 2
+      }
+
+      function randomDimension(max_value) {
+        if (PARAMS.gaussianness == 0) {
+          var x = randomNumber()
+        } else {
+          var x = gaussianRandomNumber() / PARAMS.gaussianness
+        }
+        return max_value/2 + x * (max_value / 2)
+      }
+
+      function randomPoint(max_x, max_y) {
+        var z = randomNumber()
+          return {x: randomDimension(max_x), y: randomDimension(max_y), z: z, base_z: z}
+      }
+
+var vertices = null
+function regen() {
+  var num_verticies = Math.pow(2, PARAMS.vertices)
+  var i = num_verticies
+  vertices = new Array(num_verticies)
+
+for (var j = 0; j < PARAMS.vertices*2; j++) {
+  for (var k = 0; k < PARAMS.vertices*2; k++) {
+    // generate points inside this box
+      var points = num_verticies / (PARAMS.vertices*2*PARAMS.vertices*2)
+      for (var l = 0; l < points; l++) {
+        vertex = randomPoint(canvas.width/(PARAMS.vertices*2), canvas.height/(PARAMS.vertices*2))
+        vertex.x += j * (canvas.width/(PARAMS.vertices*2))
+        vertex.y += k * (canvas.height/(PARAMS.vertices*2))
+        vertices[--i] = vertex
+      }
+
+  }
+}
+      // while(i) {
+      //   vertex = randomPoint(canvas.width, canvas.height)
+      //   vertices[--i] = vertex
+      // }
+  }
+
+    function render() {
+      for (var i = 0; i < vertices.length; i++) {
+        vertex = vertices[i]
+        vertex.z = vertex.base_z * PARAMS.height
+      }
+
+      var canvas = document.getElementById("canvas"),
+          ctx = canvas.getContext("2d")
+
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+
+      // function randomPointOriginal(max_x, max_y) {
+      //   do {
+      //     x = Math.random() - 0.5
+      //     y = Math.random() - 0.5
+      //   } while(x * x + y * y > 0.25)
+
+      //   x = (x * 0.96875 + 0.5) * max_x
+      //   y = (y * 0.96875 + 0.5) * max_y
+      //   return [x, y]
+      // }
+
+      function drawVertex(vertex) {
+        ctx.beginPath()
+        ctx.arc(vertex.x, vertex.y, 1, 0, 2 * Math.PI, false);
+        ctx.closePath()
+        ctx.fillStyle = "rgb(200, 0, 0)"
+        ctx.fill()
+      }
+
+      // for (var i = 0; i < vertices.length; i++) {
+      //   drawVertex(vertices[i])
+      // }
+      // return
+
+      console.time("triangulate")
+      var triangles = triangulate(vertices)
+      console.timeEnd("triangulate")
+
+      var i = triangles.length
+      while(i)
+        triangles[--i].draw(ctx)
+    }
+    regen()
+    render()
+    </script>
+  </body>
+</html>
